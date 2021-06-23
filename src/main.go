@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"time"
 
@@ -20,7 +21,7 @@ type Credentials struct {
 }
 
 func main() {
-
+	rand.Seed(time.Now().Unix())
 	creds := Credentials{
 		AccessToken:       os.Getenv("ACCESS_TOKEN"),
 		AccessTokenSecret: os.Getenv("ACCESS_TOKEN_SECRET"),
@@ -35,15 +36,25 @@ func main() {
 		return
 	}
 
-	chapterNumber := 1
-	haveATweet, err := chapterHaveATweet(client, user, chapterNumber)
-	if err != nil {
-		log.Printf("Error will trying to check if chapter %d have a tweet", chapterNumber)
-		return
+	for chapterNumber := 1; chapterNumber < 1017; chapterNumber++ {
+		haveATweet, err := chapterHaveATweet(client, user, chapterNumber)
+		if err != nil {
+			log.Printf("Error will trying to check if chapter %d have a tweet", chapterNumber)
+			log.Println(err)
+			return
+		}
+		if !haveATweet {
+			tweet, _, err := tweet(client, chapterNumber)
+			if err != nil {
+				log.Printf("Error while tweeting on chapter %d\n", chapterNumber)
+				log.Println(err)
+				return
+			} else {
+				log.Printf("Tweet: %s\n", tweet.Text)
+			}
+		}
 	}
-	if !haveATweet {
-		tweet(client, chapterNumber)
-	}
+
 }
 
 func getClient(creds *Credentials) (*twitter.Client, *twitter.User, error) {
@@ -71,33 +82,32 @@ func getClient(creds *Credentials) (*twitter.Client, *twitter.User, error) {
 func chapterHaveATweet(client *twitter.Client, user *twitter.User, chapterNumber int) (bool, error) {
 	var search twitter.SearchTweetParams
 	search.Query = fmt.Sprintf("from:%s #onepiece%d", user.ScreenName, chapterNumber)
+	search.Count = 1
 	tweets, _, err := client.Search.Tweets(&search)
 	if err != nil {
 		return false, err
 	}
-	if len(tweets.Statuses) > 0 {
+	if len(tweets.Statuses) != 0 {
+		log.Printf("Chapter %d already have a tweet\n", chapterNumber)
 		return true, nil
 	} else {
+		log.Printf("Chapter %d have no tweet", chapterNumber)
 		return false, nil
 	}
 }
 
-func tweet(client *twitter.Client, chapterNumber int) {
+func tweet(client *twitter.Client, chapterNumber int) (*twitter.Tweet, *http.Response, error) {
 	image := os.Getenv("IMAGE_LINK")
-	rand.Seed(time.Now().Unix())
 	messages := []string{
 		"Cette semaine encore gOda à frapper",
 		"Juste exceptionnel",
 		"Cette semaine encore je croie qu'on peu le dire",
-		"On a véccue un chapitre excetionnel",
+		"On a véccue un chapitre incroyable",
 		"Quel Masterclass",
 		"Là juste respect",
 		"Merci Oda",
 	}
 	message := fmt.Sprintf("%s #onepiece%d %s", messages[rand.Intn(len(messages))], chapterNumber, image)
-	_, _, err := client.Statuses.Update(message, nil)
-	if err != nil {
-		log.Printf("Error while tweeting on chapter %d\n", chapterNumber)
-		log.Println(err)
-	}
+	tweet, resp, err := client.Statuses.Update(message, nil)
+	return tweet, resp, err
 }
