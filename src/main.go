@@ -4,7 +4,9 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
+	"time"
 
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
@@ -18,7 +20,7 @@ type Credentials struct {
 }
 
 func main() {
-	fmt.Println("Go-Twitter Bot v0.01")
+
 	creds := Credentials{
 		AccessToken:       os.Getenv("ACCESS_TOKEN"),
 		AccessTokenSecret: os.Getenv("ACCESS_TOKEN_SECRET"),
@@ -26,26 +28,13 @@ func main() {
 		ConsumerSecret:    os.Getenv("CONSUMER_SECRET"),
 	}
 
-	fmt.Printf("%+v\n", creds)
 	client, err := getClient(&creds)
 	if err != nil {
 		log.Println("Error getting Twitter Client")
 		log.Println(err)
 	}
 
-	fmt.Printf("%+v\n", client)
-
-	println("                                                     ")
-	for i := 0; i < 10; i++ {
-		tweet, resp, err := client.Statuses.Update(fmt.Sprintf("Hello world, just testing the bot in order to #debug #%d", i), nil)
-		if err != nil {
-			log.Println("Error while tweeting")
-			log.Println(err)
-		}
-		log.Printf("%+v\n", resp)
-		log.Printf("%+v\n", tweet)
-	}
-
+	tweet(client, 1)
 }
 
 func getClient(creds *Credentials) (*twitter.Client, error) {
@@ -65,6 +54,27 @@ func getClient(creds *Credentials) (*twitter.Client, error) {
 		return nil, err
 	}
 
-	log.Printf("User's ACCOUNT:\n%+v\n", user)
+	log.Println("Connected to twitter")
+	log.Printf("User's ACCOUNT: %+s\n", user.Name)
 	return client, nil
+}
+
+func tweet(client *twitter.Client, chapterNumber int) {
+	image := os.Getenv("IMAGE_LINK")
+	rand.Seed(time.Now().Unix())
+	messages := []string{
+		"Cette semaine encore gOda à frapper",
+		"Juste exceptionnel",
+		"Cette semaine encore je croie qu'on peu le dire",
+		"On a véccue un chapitre excetionnel",
+		"Quel Masterclass",
+		"Là juste respect",
+		"Merci Oda",
+	}
+	message := fmt.Sprintf("%s #onepiece%d %s", messages[rand.Intn(len(messages))], chapterNumber, image)
+	_, _, err := client.Statuses.Update(message, nil)
+	if err != nil {
+		log.Printf("Error while tweeting on chapter %d\n", chapterNumber)
+		log.Println(err)
+	}
 }
