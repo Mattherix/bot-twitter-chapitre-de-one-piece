@@ -28,16 +28,25 @@ func main() {
 		ConsumerSecret:    os.Getenv("CONSUMER_SECRET"),
 	}
 
-	client, err := getClient(&creds)
+	client, user, err := getClient(&creds)
 	if err != nil {
 		log.Println("Error getting Twitter Client")
 		log.Println(err)
+		return
 	}
 
-	tweet(client, 1)
+	chapterNumber := 1
+	haveATweet, err := chapterHaveATweet(client, user, chapterNumber)
+	if err != nil {
+		log.Printf("Error will trying to check if chapter %d have a tweet", chapterNumber)
+		return
+	}
+	if !haveATweet {
+		tweet(client, chapterNumber)
+	}
 }
 
-func getClient(creds *Credentials) (*twitter.Client, error) {
+func getClient(creds *Credentials) (*twitter.Client, *twitter.User, error) {
 	config := oauth1.NewConfig(creds.ConsumerKey, creds.ConsumerSecret)
 	token := oauth1.NewToken(creds.AccessToken, creds.AccessTokenSecret)
 
@@ -51,12 +60,26 @@ func getClient(creds *Credentials) (*twitter.Client, error) {
 
 	user, _, err := client.Accounts.VerifyCredentials(verifyParams)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	log.Println("Connected to twitter")
 	log.Printf("User's ACCOUNT: %+s\n", user.Name)
-	return client, nil
+	return client, user, nil
+}
+
+func chapterHaveATweet(client *twitter.Client, user *twitter.User, chapterNumber int) (bool, error) {
+	var search twitter.SearchTweetParams
+	search.Query = fmt.Sprintf("from:%s #onepiece%d", user.ScreenName, chapterNumber)
+	tweets, _, err := client.Search.Tweets(&search)
+	if err != nil {
+		return false, err
+	}
+	if len(tweets.Statuses) > 0 {
+		return true, nil
+	} else {
+		return false, nil
+	}
 }
 
 func tweet(client *twitter.Client, chapterNumber int) {
